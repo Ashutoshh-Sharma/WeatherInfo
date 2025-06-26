@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8"/>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+
+  <title>WeatherInfo Dashboard</title>
+
+  <style>
+
+    body{
+
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+
+      background: linear-gradient(to left, #83a4d4 10%, #b6fbff );
+
+      margin: 0;
+
+      padding: 40px;
+
+      display: flex;
+
+      justify-content: center;
+
+      align-items: flex-start;
+
+      min-height: 100vh;
+
+    }
+
+    .container{
+
+      background: #ffffff;
+
+      border-radius: 12px;
+
+      box-shadow: 20px 20px 0px rgba(0, 0, 0, 0.2);
+
+      padding: 30px;
+
+      max-width: 500px;
+
+      width: 100%;
+
+    }
+
+    h1{
+
+      text-align: center;
+
+      font-size: 28px;
+
+      margin-bottom: 20px;
+
+      color: #333;
+
+    }
+
+    .weather-card{
+
+      background: #f7f9fc;
+
+      border: 1px solid #ddd;
+
+      border-radius: 10px;
+
+      padding: 20px;
+
+      margin-top: 20px;
+
+      text-align: center;
+
+    }
+
+    button{
+
+      width: 100%;
+
+      padding: 12px;
+
+      font-size: 16px;
+
+      background-color: #007bff;
+
+      border: none;
+
+      color: white;
+
+      border-radius: 6px;
+
+      cursor: pointer;
+
+      transition: background-color 0.3s ease;
+
+    }
+
+    button:hover{ 
+
+      background-color: #0056b3; 
+
+    }
+
+    label{
+
+      font-weight: bold;
+
+      display: block;
+
+      margin-bottom: 8px;
+
+      color: #444;
+
+    }
+
+
+
+    input[type="text"]{
+
+      width: 95%;
+
+      padding: 12px;
+
+      border: 1px solid #ccc;
+
+      border-radius: 6px;
+
+      margin-bottom: 15px;
+
+      font-size: 16px;
+
+    }
+
+    button:hover{
+
+      background-color: #0056b3;
+
+    }
+
+    .weather-info{
+
+      display: grid;
+
+      grid-template-columns: 1fr 1fr;
+
+      gap: 12px;
+
+      font-size: 18px;
+
+      color: #555;
+
+      margin: 10px 0; 
+
+    }
+
+    .weather-info div{
+
+      background: #fff;
+
+      border: 1px solid #ddd;
+
+      border-radius: 6px;
+
+      padding: 10px;
+
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+  <div class="container">
+
+    <h1>WeatherInfo Dashboard</h1>
+
+
+
+    <!-- City Input -->
+
+    <label for="city-input">Enter City:</label>
+
+    <input type="text" id="city-input" placeholder="Type a city name" />
+
+    <button id="get-weather-btn">Check Weather</button>
+
+
+
+    <!-- Weather Information -->
+
+    <div id="weather-card" class="weather-card">
+
+      <h2 id="city-name">Loading...</h2>
+
+      <div class="weather-info">
+
+        <div><strong>Temperature:</strong> <span id="temperature">--</span>°C</div>
+
+        <div><strong>Humidity:</strong> <span id="humidity">--</span>%</div>
+
+        <div><strong>Wind Speed:</strong> <span id="wind-speed">--</span> m/s</div>
+
+        <div><strong>Forecast:</strong> <span id="forecast">--</span></div>
+
+      </div>
+
+      <button id="download-btn">Download Data</button>
+
+    </div>
+
+  </div>
+
+
+
+  <script>
+
+    const socket = new WebSocket('ws://localhost:9000');
+
+    const cityName = document.getElementById('city-name');
+
+    const temperature = document.getElementById('temperature');
+
+    const humidity = document.getElementById('humidity');
+
+    const windSpeed = document.getElementById('wind-speed');
+
+    const forecast = document.getElementById('forecast');
+
+    const cityInput = document.getElementById('city-input');
+
+    const getWeatherBtn = document.getElementById('get-weather-btn');
+
+    const downloadBtn = document.getElementById('download-btn');
+
+
+
+    socket.onopen = () => {
+
+      //Request weather for a default city
+
+      const defaultCity = 'Jaipur';
+
+      cityInput.value = defaultCity;
+
+      socket.send(JSON.stringify({ city: defaultCity }));
+
+    };
+
+
+
+    socket.onmessage = function(event) {
+
+      const data = JSON.parse(event.data);
+
+
+
+      if (data.error) {
+
+        alert("Error: " + data.error);
+
+        return;
+
+      }
+
+
+
+      if (data.past_data) {
+
+        //Download past data in txt file
+
+        const blob = new Blob([JSON.stringify(data.past_data, null, 2)], { type: 'application/txt' });
+
+        const url = URL.createObjectURL(blob);
+
+
+
+        const a = document.createElement('a');
+
+        a.href = url;
+
+        const fileNameCity = cityInput.value.trim() || 'city';
+
+        a.download = `weather_history_${fileNameCity}.txt`;
+
+        document.body.appendChild(a);
+
+        a.click();
+
+
+
+        setTimeout(() => {
+
+          document.body.removeChild(a);
+
+          URL.revokeObjectURL(url);
+
+        }, 0);
+
+
+
+        return; 
+
+      }
+
+
+
+      //Update weather on page
+
+      cityName.textContent = data.city;
+
+      temperature.textContent = data.temperature;
+
+      humidity.textContent = data.humidity;
+
+      windSpeed.textContent = data.wind_speed;
+
+      forecast.textContent = data.forecast;
+
+    };
+
+
+
+    getWeatherBtn.addEventListener('click', () => {
+
+      const city = cityInput.value.trim();
+
+      if (city.length > 0) {
+
+        if (socket.readyState === WebSocket.OPEN) {
+
+          socket.send(JSON.stringify({ city }));
+
+        } else {
+
+          alert("WebSocket is not connected.");
+
+        }
+
+      } else {
+
+        alert("Please enter a city name.");
+
+      }
+
+    });
+
+
+
+    downloadBtn.addEventListener('click', () => {
+
+      if (socket.readyState === WebSocket.OPEN) {
+
+        socket.send(JSON.stringify({ download_past_data: true }));
+
+      } else {
+
+        alert("WebSocket is not connected.");
+
+      }
+
+    });
+
+  </script>
+
+</body>
+
+</html>
+
+  
